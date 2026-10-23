@@ -1,0 +1,9 @@
+{
+    "winner_model": "tft_prophet",
+    "performance_score": 0.98,
+    "all_scores": {
+        "tft_prophet": 0.98,
+        "tabnet": 0.81,
+        "gnn_graphsage": 0.72
+    }
+}

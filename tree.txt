@@ -1,0 +1,37 @@
+F-Race
+├── data
+│   ├── dim_constructors
+│   │   └── dim_constructors.parquet
+│   ├── dim_drivers
+│   │   └── dim_drivers.parquet
+│   ├── dim_races
+│   │   └── dim_races.parquet
+│   ├── fact_session_results
+│   │   └── fact_session_results.parquet
+│   └── ref_nationality_region
+│       └── ref_nationality_region.parquet
+└── Graphic-LlmRag
+    ├── api
+    │   ├── __init__.py
+    │   └── app.py
+    ├── graph_store
+    │   ├── __init__.py
+    │   └── neo4j_connector.py
+    ├── ml_engine
+    │   ├── __init__.py
+    │   ├── autolabel.py
+    │   ├── evaluator.py
+    │   ├── registry
+    │   └── trainer.py
+    ├── rag_engine
+    │   ├── __init__.py
+    │   ├── embedder.py
+    │   ├── retriever.py
+    │   └── vector_store.py
+    ├── README.md
+    ├── requirements.txt
+    ├── scripts
+    │   └── run_pipeline.sh
+    └── tree.txt
+
+7 directories, 16 files
