@@ -1,5 +1,8 @@
 {
-    "tft_prophet": 0.98,
-    "tabnet": 0.81,
-    "gnn_graphsage": 0.72
+    "xgboost": 0.98,
+    "lightgbm": 0.84,
+    "isolation_forest": 0.65,
+    "tft_prophet": 0.8,
+    "tabnet": 0.82,
+    "gnn_graphsage": 0.75
 }
