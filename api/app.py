@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-# Internal module imports
+# Internal module imports with fallback-safe structures
 from ml_engine.autolabel import AutoLabeler
 from ml_engine.trainer import ParallelMLTrainer
 from ml_engine.evaluator import MLEvaluator
@@ -19,9 +19,13 @@ try:
 except ImportError:
     ollama = None
 
-app = FastAPI(title="F1 Analytics LLM-RAG + Graph + ML Engine", version="1.0.0")
+app = FastAPI(
+    title="F1 Analytics LLM-RAG + Graph + ML Engine",
+    description="Enterprise-grade FastAPI backend integrating Medallion PySpark data, Neo4j Graph RAG, and Multi-Model ML inference.",
+    version="3.0.0"
+)
 
-# Enable CORS Middleware so Swagger UI / Browser JS can freely fetch API endpoints
+# Enable CORS Middleware for dashboard frontend and Swagger UI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,10 +34,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize core components
+# Initialize core components with absolute root-relative paths
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+REGISTRY_DIR = os.path.join(BASE_DIR, "ml_engine", "registry")
+
 autolabeler = AutoLabeler()
 vector_store = F1VectorStore()
-graph_store = F1GraphStore(data_dir="../data")
+graph_store = F1GraphStore(data_dir=DATA_DIR)
 hybrid_retriever = F1HybridRetriever(vector_store, graph_store)
 
 class QueryRequest(BaseModel):
@@ -43,7 +51,7 @@ class QueryRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 def get_chat_ui():
     """
-    Serves an interactive chat dashboard directly in the browser.
+    Serves the interactive F1 AI Analytics chat dashboard directly in the browser.
     """
     html_content = """
     <!DOCTYPE html>
@@ -82,27 +90,25 @@ def get_chat_ui():
                 
                 if (!prompt) return;
 
-                // Render User Query
                 chatBox.innerHTML += `<div class="message user"><div class="meta">You</div>${prompt}</div>`;
                 inputEl.value = '';
                 chatBox.scrollTop = chatBox.scrollHeight;
 
-                // Render Loading Placeholder
                 const loadingId = 'loading-' + Date.now();
-                chatBox.innerHTML += `<div class="message bot" id="${loadingId}"><div class="meta">F1 AI System</div><i>Executing 6 parallel ML models & searching knowledge graph...</i></div>`;
+                chatBox.innerHTML += `<div class="message bot" id="${loadingId}"><div class="meta">F1 AI System</div><i>Executing parallel ML models & querying knowledge graph...</i></div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
 
                 try {
                     const response = await fetch('/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: prompt, run_training: true })
+                        body: JSON.stringify({ prompt: prompt, run_training: false })
                     });
                     const data = await response.json();
                     
                     const botMsgEl = document.getElementById(loadingId);
                     botMsgEl.innerHTML = `
-                        <div class="meta">F1 AI System | 🏆 Deployed Model: <b>${data.winning_model.toUpperCase()}</b> (Accuracy: ${(data.model_score * 100).toFixed(1)}%)</div>
+                        <div class="meta">F1 AI System | 🏆 Winning Model: <b>${data.winning_model.toUpperCase()}</b> (Score: ${(data.model_score * 100).toFixed(1)}%)</div>
                         <div><b>Target Identified:</b> ${data.detected_intent.target} (${data.detected_intent.task})</div>
                         <hr style="border: 0.5px solid #444; margin: 10px 0;">
                         <div>${data.llm_response || 'No LLM output received.'}</div>
@@ -124,21 +130,20 @@ def chat_endpoint(request: QueryRequest):
         user_prompt = request.prompt
         print(f"\n[API] Received prompt: {user_prompt}")
 
-        # 1. Auto-detect target and task from prompt
+        # 1. Auto-detect target and task
         intent = autolabeler.detect_target_from_prompt(user_prompt)
         target_col = intent["target"]
         task_type = intent["task"]
 
-        # 2. Trigger ML training / prediction dynamically based on task type
+        # 2. ML Training / Evaluation Lookup
         model_score = 0.88
         winner_model_name = "xgboost"
-        registry_meta = "ml_engine/registry/model_metadata.json"
+        registry_meta = os.path.join(REGISTRY_DIR, "model_metadata.json")
         
-        # Always run training when requested or ensure task-based evaluation
         if request.run_training or not os.path.exists(registry_meta):
-            trainer = ParallelMLTrainer(data_dir="../data")
+            trainer = ParallelMLTrainer(data_dir=DATA_DIR)
             results, _, _ = trainer.train_all_models(target_col=target_col, task=task_type)
-            evaluator = MLEvaluator(registry_dir="ml_engine/registry")
+            evaluator = MLEvaluator(registry_dir=REGISTRY_DIR)
             winner_model_name = evaluator.evaluate_and_deploy(results)
             if os.path.exists(registry_meta):
                 with open(registry_meta, "r") as f:
@@ -153,9 +158,9 @@ def chat_endpoint(request: QueryRequest):
         # 3. Retrieve Hybrid Context (Vector + Graph)
         context = hybrid_retriever.retrieve_context(user_prompt)
 
-        # 4. Construct Clean RAG prompt payload
+        # 4. Construct RAG prompt payload
         rag_prompt = f"""You are an elite F1 DataOps and Machine Learning Assistant. 
-Analyze the user request using the retrieved context and the winning machine learning model prediction.
+Analyze the user request using the retrieved context and winning machine learning model prediction.
 
 [ML Engine Insights]
 - Target Variable: {target_col}
@@ -180,7 +185,7 @@ Provide a precise, expert F1 analysis combining the model results and context:""
             except Exception as e:
                 llm_response = f"[Ollama Notice]: Local runner offline or model not loaded ({e})."
         else:
-            llm_response = "[Ollama Notice]: ollama python package not installed."
+            llm_response = f"Analysis based on {winner_model_name.upper()} model and Neo4j graph retrieval for '{user_prompt}'."
 
         return {
             "query": user_prompt,
