@@ -6,7 +6,6 @@ class AutoLabeler:
     and configure machine learning tasks for the Gold star schema.
     """
     def __init__(self):
-        # Expanded intent mapping covering wins, podiums, points, regression, anomaly, and forecasts
         self.intent_mapping = {
             "maximum score": {"target": "points", "task": "aggregation", "metric": "sum"},
             "most points": {"target": "points", "task": "aggregation", "metric": "sum"},
@@ -24,11 +23,7 @@ class AutoLabeler:
 
     def detect_target_from_prompt(self, prompt: str) -> dict:
         prompt_lower = prompt.lower()
-        
-        # Default fallback target
         detected = {"target": "is_podium", "task": "classification", "metric": "logloss"}
-        
-        # Check longer/specific keyword phrases first, then single words
         sorted_keywords = sorted(self.intent_mapping.keys(), key=lambda x: len(x), reverse=True)
         
         for keyword in sorted_keywords:
@@ -39,5 +34,4 @@ class AutoLabeler:
                 detected["metric"] = config["metric"]
                 break
                 
-        print(f"[AutoLabeler] Prompt parsed successfully -> Target: {detected['target']} | Task: {detected['task']} | Metric: {detected['metric']}")
         return detected
