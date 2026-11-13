@@ -11,8 +11,6 @@ class F1HybridRetriever:
         self.graph_store = graph_store
 
     def retrieve_context(self, query: str) -> str:
-        print(f"[HybridRetriever] Fetching hybrid context for query: '{query}'")
-        
         # 1. Vector DB Semantic Search
         vector_results = self.vector_store.query(query_texts=[query], n_results=2)
         docs = vector_results.get("documents", [[]])[0]
@@ -21,11 +19,9 @@ class F1HybridRetriever:
         # 2. Graph Store Entity Search
         graph_context = self.graph_store.query_graph_context(query)
 
-        # Combine into unified context string
-        combined_context = f"""=== VECTOR KNOWLEDGE BASE ===
+        return f"""=== VECTOR KNOWLEDGE BASE ===
 {vector_context}
 
 === GRAPH KNOWLEDGE STORE ===
 - {graph_context}
 """
-        return combined_context
